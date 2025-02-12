@@ -5,56 +5,56 @@
 - USleep
   - Multi Channel EEG + EOG
     ```
-    predict --project_dir "./u-sleep-nsrr-2022" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
+    predict --project_dir "./u-sleep-nsrr-2022" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
     ```
   - Single Channel EEG
     ```
-    predict --project_dir "./u-sleep-nsrr-2022_eeg" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
+    predict --project_dir "./u-sleep-nsrr-2022_eeg" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
     ```
   - Single Channel EOG
     ```
-    predict --project_dir "./u-sleep-nsrr-2022_eog" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
+    predict --project_dir "./u-sleep-nsrr-2022_eog" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
     ```
 
 - Deepresnet
   - Multi Channel EEG + EOG
     ```
-    predict --project_dir "./deepresnet-nsrr-2022" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --one_shot --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log 
+    predict --project_dir "./deepresnet-nsrr-2022" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --strip_func strip_to_match --one_shot --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log 
     ```
   - Single Channel EEG
     ```
-    predict --project_dir "./deepresnet-nsrr-2022_eeg" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
+    predict --project_dir "./deepresnet-nsrr-2022_eeg" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
     ```
   - Single Channel EOG
     ```
-    predict --project_dir "./deepresnet-nsrr-2022_eog" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
+    predict --project_dir "./deepresnet-nsrr-2022_eog" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
     ```
 
 - Sleeptransformer
   - Multi Channel EEG + EOG
     ```
-    predict --project_dir "./sleeptransformer-nsrr-2022" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
+    predict --project_dir "./sleeptransformer-nsrr-2022" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
     ```
   - Single Channel EEG
     ```
-    predict --project_dir "./sleeptransformer-2022_eeg" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
+    predict --project_dir "./sleeptransformer-2022_eeg" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
     ```
   - Single Channel EOG
     ```
-    predict --project_dir "./sleeptransformer-nsrr-2022_eog" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
+    predict --project_dir "./sleeptransformer-nsrr-2022_eog" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_probs/prediction_log
     ```
 
 - YASA
   - Multi Channel EEG + EOG
     ```
-    predict --project_dir "./yasa" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_eeg_eog_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_eeg_eog_probs/prediction_log --model_external yasa
+    predict --project_dir "./yasa" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --eog_channels E1-M2 E2-M1 --majority --dataset abc --out_dir ./predictions_abc_eeg_eog_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_eeg_eog_probs/prediction_log --model_external yasa
     ```
 
 [//]: # (  - Single Channel EEG)
 
 [//]: # (    ```)
 
-[//]: # (    predict --project_dir "./yasa" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --majority --dataset abc --out_dir ./predictions_abc_eeg_probs --num_gpus=0 --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_eeg_probs/prediction_log --model_external yasa)
+[//]: # (    predict --project_dir "./yasa" --log_level INFO --seed 123 --folder_regex /[LOCAL_PATH]/data/processed/abc/abc* --eeg_channels F4-M1 C4-M1 --majority --dataset abc --out_dir ./predictions_abc_eeg_probs --num_gpus=0 --strip_func strip_to_match --one_shot --no_argmax --save_true --overwrite --log_file ./predictions_abc_eeg_probs/prediction_log --model_external yasa)
 
 [//]: # (    ```)
 

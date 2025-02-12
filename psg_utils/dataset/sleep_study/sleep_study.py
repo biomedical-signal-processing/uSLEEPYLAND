@@ -226,7 +226,7 @@ class SleepStudy(SubjectDirSleepStudyBase):
             scaler: String, naming a sklearn.preprocessing scaler.
         """
         # if not assert_scaler(scaler):
-        #     raise ValueError("Invalid scaler, does not exist {}".format(scaler))
+        #    raise ValueError("Invalid scaler, does not exist {}".format(scaler))
         self._scaler = scaler
         if self.loaded:
             self.reload(warning=True)

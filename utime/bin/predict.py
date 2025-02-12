@@ -83,10 +83,15 @@ def get_argparser():
     parser.add_argument("--num_test_time_augment", type=int, default=0,
                         help="Number of prediction passes over each sleep "
                              "study with augmentation enabled.")
-    parser.add_argument("--one_shot", action="store_true",
+    parser.add_argument("--one_shot", action="store_true", default=False,
                         help="Segment each SleepStudy in one forward-pass "
                              "instead of using (GPU memory-efficient) sliding "
                              "window predictions.")
+    parser.add_argument("--non_overlapping", action="store_true", default=False,
+                        help="Use non-overlapping segments for non one-shot prediction.")
+    parser.add_argument("--is_logits", action="store_true", default=False,
+                        help="Indicates that predictions in output by the model are logits, "
+                             "not probabilities.")
     parser.add_argument("--save_true", action="store_true",
                         help="Save the true labels matching the predictions "
                              "(will be repeated if --data_per_prediction is "
@@ -233,7 +238,7 @@ def get_datasets(hparams, args):
     return datasets
 
 
-def predict_study(sleep_study_pair, seq, model, model_func, model_external, num_test_time_augment=0, no_argmax=False):
+def predict_study(sleep_study_pair, seq, model, model_func, model_external, args, num_test_time_augment=0, no_argmax=False):
     # Predict
     with sleep_study_pair.loaded_in_context():
         y, pred = predict_on(study_pair=sleep_study_pair,
@@ -242,6 +247,8 @@ def predict_study(sleep_study_pair, seq, model, model_func, model_external, num_
                              model_func=model_func,
                              model_external=model_external,
                              n_aug=num_test_time_augment,
+                             is_logits=args.is_logits,
+                             overlapping=not args.non_overlapping,
                              argmax=False)
     org_pred_shape = pred.shape
     if callable(getattr(pred, "numpy", None)):
@@ -280,13 +287,14 @@ def get_updated_majority_voted(majority_voted, pred):
     return majority_voted
 
 
-def run_pred_on_channels(sleep_study_pair, seq, model, model_func, model_external, num_test_time_augment=0):
+def run_pred_on_channels(sleep_study_pair, seq, model, model_func, model_external, args, num_test_time_augment=0):
     pred, y, org_pred_shape = predict_study(
         sleep_study_pair=sleep_study_pair,
         seq=seq,
         model=model,
         model_func=model_func,
         model_external=model_external,
+        args=args,
         num_test_time_augment=num_test_time_augment,
         no_argmax=True
     )
@@ -344,6 +352,7 @@ def run_pred_on_pair(sleep_study_pair, seq, model, model_func, out_dir, channel_
             model=model,
             model_func=model_func,
             model_external=args.model_external,
+            args=args,
             num_test_time_augment=args.num_test_time_augment
         )
         # Sum the predictions into the majority_voted array

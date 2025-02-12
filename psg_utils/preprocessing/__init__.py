@@ -1,6 +1,7 @@
-from .scaling import get_scaler, apply_scaling, assert_scaler
+from .scaling import get_scaler, apply_scaling, assert_scaler, batch_scaling
 from .psg_sampling import set_psg_sample_rate
 from .strip_funcs import apply_strip_func, assert_equal_length
 from .quality_control_funcs import apply_quality_control_func
 from .filtering import apply_filtering, apply_notch_filtering
 from .utils import set_preprocessing_pipeline
+from .spectrogram import compute_spectrogram

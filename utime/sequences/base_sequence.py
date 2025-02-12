@@ -7,7 +7,8 @@ from functools import wraps
 from multiprocessing import current_process
 from utime import Defaults
 from psg_utils.errors import NotLoadedError
-from psg_utils.preprocessing.scaling import apply_scaling, assert_scaler
+from psg_utils.preprocessing.scaling import assert_scaler, batch_scaling
+from psg_utils.preprocessing.spectrogram import compute_spectrogram
 from psg_utils.dataset.utils import assert_all_loaded
 
 logger = logging.getLogger(__name__)
@@ -367,71 +368,6 @@ class BaseSequence(_BaseSequence):
                                 "sure to implement all augmenters with "
                                 "in-place operations on (X, y, w).")
 
-    def scale(self, X):
-        """
-        Fit and apply scaler 'self.batch_scaler' to batch X
-        Used only when self.batch_scaler is set, typically the entire PSG is
-        scaled before training and this is not used.
-
-        Args:
-            X: (ndarray) A batch of data
-
-        Returns:
-            X (ndarray), scaled batch of data
-        """
-        # Loop over batch and scale each element
-        for i, input_ in enumerate(X):
-            org_shape = input_.shape
-            input_ = input_.reshape(-1, org_shape[-1])
-            scaled_input = apply_scaling(input_, self.batch_scaler)[0]
-            X[i] = scaled_input.reshape(org_shape)
-
-    def compute_spectrogram(self, X):
-        """
-        Compute the spectrogram of the PSG data
-
-        Args:
-            X: (ndarray) A batch of data of shape [batch_size, n_epochs, epoch_len, n_channels]
-        """
-        original_fs = 128
-        fs = 100
-        epoch_len = 30 * original_fs
-
-        # resample to 100 Hz
-        X = sig.resample(
-            X,
-            int(epoch_len / original_fs * fs),
-            axis=2)
-
-        # bandpass filter
-        Nfir = 100
-        f_cutoff = [0.3, 40]
-        b = sig.firwin(Nfir + 1,
-                       f_cutoff,
-                       window="hamming",
-                       pass_zero='bandpass',
-                       scale=True,
-                       fs=fs)
-        X = sig.filtfilt(b, 1, X, axis=2)
-
-        # compute spectrogram
-        f, t, S_epoch = sig.spectrogram(X,
-                                        fs=fs,
-                                        window='hamming',
-                                        nperseg=2 * fs,
-                                        noverlap=fs,
-                                        nfft=256,
-                                        detrend=False,
-                                        scaling='density',
-                                        mode='complex',
-                                        axis=2)
-        # log magnitude
-        S_epoch_log = 20 * np.log10(np.abs(S_epoch) + 0.0001) # np.finfo(np.float32).eps
-        # transpose to [batch_size, n_epochs, n_time, n_freq, n_channels]
-        S_epoch_log = S_epoch_log.transpose(0, 1, 4, 2, 3)
-
-        return S_epoch_log
-
     def process_batch(self, X, y):
         """
         Process a batch (X, y) of sampled data.
@@ -480,15 +416,22 @@ class BaseSequence(_BaseSequence):
                                                     expected_dim))
 
         if self.get_spectrogram:
-            spectrogram = self.compute_spectrogram(X)
-            if ((not (spectrogram >= 20*np.log10(np.finfo(np.float32).eps)).all()) or
-                    np.iscomplex(spectrogram).any() or np.isnan(spectrogram).any() or
-                    np.isinf(spectrogram).any()):
-                logger.info("Spectrogram contains unexpected values. ")
+            spectrogram = compute_spectrogram(X)
+
+            # Checks
+            if not (spectrogram >= 20*np.log10(np.finfo(np.float32).eps)).all():
+                logger.info("Spectrogram contains values below the expected threshold. ")
+            if np.iscomplex(spectrogram).any():
+                logger.info("Spectrogram contains complex values. ")
+            if np.isnan(spectrogram).any():
+                logger.info("Spectrogram contains NaN values. ")
+            if np.isinf(spectrogram).any():
+                logger.info("Spectrogram contains infinite values. ")
+
             if self.get_spectrogram == "both":  # xsleepnet
                 if self.batch_scaler:
-                    self.scale(X)
-                    self.scale(spectrogram)
+                    batch_scaling(X, self.batch_scaler)
+                    batch_scaling(spectrogram, self.batch_scaler)
                 w = np.ones(len(X))
                 if self.augmentation_enabled:
                     self.augment(X, y, w=w)
@@ -497,7 +440,7 @@ class BaseSequence(_BaseSequence):
             elif self.get_spectrogram == "replace":  # sleep transformer, l-seqsleepnet
                 X = spectrogram
                 if self.batch_scaler:
-                    self.scale(X)
+                    batch_scaling(X, self.batch_scaler)
                 w = np.ones(len(X))
                 if self.augmentation_enabled:
                     self.augment(X, y, w=w)
@@ -508,7 +451,7 @@ class BaseSequence(_BaseSequence):
                                  "Expected 'both' or 'replace' or None.")
         else:  # u-sleep, deepresnet
             if self.batch_scaler:
-                self.scale(X)
+                batch_scaling(X, self.batch_scaler)
             w = np.ones(len(X))
             if self.augmentation_enabled:
                 self.augment(X, y, w=w)

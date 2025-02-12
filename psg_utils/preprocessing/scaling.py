@@ -83,6 +83,23 @@ def apply_scaling(X, scaler):
     return multi_scaler.transform(X), multi_scaler
 
 
+def batch_scaling(X, batch_scaler):
+    """
+    Fit and apply scaler to batch X. Used only when a batch_scaler is set.
+    This operates on a per-instance and per-channel basis.
+    Can be used both on PSG raw data or spectrograms. The X array is modified in-place.
+
+    Args:
+        X: (ndarray) A batch of raw data of shape [batch_size, n_epochs, epoch_len, n_channels]
+        or a spectrogram of shape [batch_size, n_epochs, n_time, n_freq, n_channels]
+    """
+    for i, input_ in enumerate(X):
+        org_shape = input_.shape
+        input_ = input_.reshape(-1, org_shape[-1])
+        scaled_input = apply_scaling(input_, batch_scaler)[0]
+        X[i] = scaled_input.reshape(org_shape)
+
+
 class MultiChannelScaler(object):
     """
     Wraps around Scaler objects from the sklearn.preprocessing module,

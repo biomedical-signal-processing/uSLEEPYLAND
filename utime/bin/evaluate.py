@@ -20,6 +20,7 @@ from utime.utils.scriptutils import (assert_project_folder,
                                      with_logging_level_wrapper)
 from utime.evaluation.dataframe import (get_eval_df, add_to_eval_df,
                                         log_eval_df, with_grand_mean_col)
+from utime.utils.nn_utils import softmax
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +216,7 @@ def save(arr, fname):
     np.savez(fname, arr)
 
 
-def _predict_sequence(study_pair, seq, model, verbose=True):
+def _predict_sequence(study_pair, seq, model, overlapping=True, is_logits=False, verbose=True):
     """
     Predict on 'study_pair' wrapped by 'seq' using 'model'
     Predicts in batches of size seq.batch_size (set in hparams file)
@@ -224,6 +225,8 @@ def _predict_sequence(study_pair, seq, model, verbose=True):
         study_pair: A SleepStudyPair object to predict on
         seq:        A BatchSequence object that stores 'study_pair'
         model:      An initialized and loaded model to predict with
+        overlapping: If True, predicts with overlapping windows
+        is_logits:  If True, the model outputs logits and should be softmaxed
         verbose:    Verbose level (True/False)
 
     Returns:
@@ -232,17 +235,18 @@ def _predict_sequence(study_pair, seq, model, verbose=True):
     """
     from utime.utils.scriptutils.predict import sequence_predict_generator
     gen = seq.single_study_seq_generator(study_id=study_pair.identifier,
-                                         overlapping=True)
+                                         overlapping=overlapping)
     pred = sequence_predict_generator(model=model,
                                       total_seq_length=study_pair.n_periods,
                                       generator=gen,
                                       argmax=False,
-                                      overlapping=True,
+                                      overlapping=overlapping,
+                                      is_logits=is_logits,
                                       verbose=verbose)
     return pred
 
 
-def _predict_sequence_one_shot(study_pair, seq, model):
+def _predict_sequence_one_shot(study_pair, seq, model, is_logits=False):
     """
     Predict on 'study_pair' wrapped by 'seq' using 'model'
     Assumes len(PSG) (number of periods in PSG) is equal to the number of
@@ -254,6 +258,7 @@ def _predict_sequence_one_shot(study_pair, seq, model):
         study_pair: A SleepStudyPair object to predict on
         seq:        A BatchSequence object that stores 'study_pair'
         model:      An initialized and loaded model to predict with
+        is_logits:  If True, the model outputs logits and should be softmaxed
 
     Returns:
         An array of predicted sleep stages for all periods in 'study_pair'
@@ -263,11 +268,16 @@ def _predict_sequence_one_shot(study_pair, seq, model):
     if X.ndim == 3:
         X = np.expand_dims(X, 0)
     logger.info(f"Predicting on input with dimension {X.shape} with one-shot model")
-    return model.predict_on_batch(X)[0]
+    batch_pred = model.predict_on_batch(X)[0]
+    
+    if is_logits:
+        batch_pred = softmax(batch_pred, axis=-1)
+
+    return batch_pred
 
 
-def predict_on(study_pair, seq, model=None, model_func=None, model_external=None, n_aug=None,
-               argmax=True):
+def predict_on(study_pair, seq, model=None, model_func=None, model_external=None,
+               n_aug=None, argmax=True, is_logits=False, overlapping=True):
     """
     High-level function for predicting on a single SleepStudyPair
     ('study_pair')object as wrapped by a BatchSequence ('seq') object using a
@@ -280,10 +290,14 @@ def predict_on(study_pair, seq, model=None, model_func=None, model_external=None
         seq:         A BatchSequence object that stores 'study_pair'
         model:       An initialized and loaded model to predict with
         model_func:  A callable which returns an intialized model
+        model_external: An external model can be specified ("yasa", "pops", ...)
         n_aug:       Number of times to predict on study_pair with random
                      augmentation enabled
         argmax:      If true, returns [n_periods, 1] sleep stage labels,
                      otherwise returns [n_periods, n_classes] softmax scores.
+        is_logits:   If True, the model outputs logits and should be softmaxed
+        overlapping: If True, predicts with overlapping windows (only for
+                        non-one-shot models)
 
     Returns:
         An array of predicted sleep stage scores for 'study_pair'.
@@ -310,19 +324,19 @@ def predict_on(study_pair, seq, model=None, model_func=None, model_external=None
             gen = seq.single_study_batch_generator(study_id=study_pair.identifier)
             pred = predict_on_generator(model=model,
                                         generator=gen,
-                                        argmax=False)
+                                        argmax=False,
+                                        is_logits=is_logits)
         else:
             if model_func:
                 # One-shot sequencing
                 pred_func = _predict_sequence_one_shot
                 # Get one-shot model of input shape matching the hypnogram
                 model = model_func(study_pair.n_periods)
+                pred = pred_func(study_pair, seq, model, is_logits=is_logits)
             else:
                 # Batch-wise sequencing with pre-loaded model
                 pred_func = _predict_sequence
-
-            # Get prediction
-            pred = pred_func(study_pair, seq, model)
+                pred = pred_func(study_pair, seq, model, is_logits=is_logits, overlapping=overlapping)
 
             if n_aug:
                 # Predict additional times with augmentation enabled
@@ -388,7 +402,6 @@ def predict_on(study_pair, seq, model=None, model_func=None, model_external=None
 
             # Get prediction
             pred = pred_list[0].copy()
-
 
 
     if callable(getattr(pred, "numpy", None)):

@@ -625,7 +625,14 @@ class AbstractBaseSleepStudy(ABC):
                 else:
                     x_batch, y_batch = [], []
         if len(x_batch) != 0 and not overlapping:
+            # we get the last segment of appropriate length
+            # we'll cut off the doubled predictions afterward
+            x_batch, y_batch = [], []
+            for idx in range(batch_size, 0, -1):
+                x, y = self.get_periods_by_idx(self.n_periods - idx)
+                x_batch.append(x), y_batch.append(y)
             yield np.array(x_batch), np.array(y_batch)
+            logger.info("Last batch instance is smaller than the required margin due to boundary effects.")
 
     def plot_period(self, period_idx=None, period_sec=None, out_path=None):
         """

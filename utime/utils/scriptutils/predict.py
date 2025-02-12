@@ -4,11 +4,12 @@ A set of functions for running prediction in various settings
 
 import logging
 import numpy as np
+from utime.utils.nn_utils import softmax
 
 logger = logging.getLogger(__name__)
 
 
-def predict_on_generator(model, generator, argmax=False):
+def predict_on_generator(model, generator, argmax=False, is_logits=False):
     """
     Takes a tf.keras model and uses it to predict on all batches in a generator
     Stacks the predictions over all batches on axis 0 (vstack)
@@ -19,6 +20,7 @@ def predict_on_generator(model, generator, argmax=False):
         generator:  A generator object yielding one or more batches of data to
                     predict on
         argmax:     Whether to return argmax values or model output values
+        is_logits:  Whether the model outputs logits
 
     Returns:
         If argmax is true, returns integer predictions of shape [-1, 1].
@@ -34,6 +36,8 @@ def predict_on_generator(model, generator, argmax=False):
         else:
             # Predict
             pred_batch = model.predict_on_batch(X_batch)
+            if is_logits:
+                pred_batch = softmax(pred_batch, axis=-1)
             if argmax:
                 pred_batch = pred_batch.argmax(-1).reshape(-1, 1)
             pred.append(pred_batch)
@@ -63,7 +67,7 @@ def predict_by_id(model, sequencer, study_id, argmax=False):
 
 
 def sequence_predict_generator(model, total_seq_length, generator,
-                               argmax=False, overlapping=True, verbose=True):
+                               argmax=False, overlapping=True, is_logits=False, verbose=True):
     """
     Takes a tf.keras model and predicts on segments of data from a generator.
     This function takes a few additional values needed to derive an
@@ -78,7 +82,8 @@ def sequence_predict_generator(model, total_seq_length, generator,
         generator:         A generator which produces batches of data
         argmax:            Whether to return argmax values or model output values
         overlapping:       Specifies whether the sequences output of 'generator'
-                           represent overlapping segments or contagious data.
+                           represent overlapping segments or contiguous data.
+        is_logits:         Whether the model outputs logits or probabilities.
         verbose:           If True, prints the prediction progess to screen.
 
     Returns:
@@ -91,26 +96,41 @@ def sequence_predict_generator(model, total_seq_length, generator,
     pred = np.zeros(shape=[total_seq_length] + s[2:], dtype=np.float64)
 
     cur_pos = 0
-    for X, _ in generator:
+    for idx, (X, _) in enumerate(generator):
         if verbose:
             print("  pos: {}/{}".format(cur_pos+1, total_seq_length),
                   end="\r", flush=True)
+        logger.info("Predicting on batch of shape: {}".format(X.shape))
         batch_pred = model.predict_on_batch(X)
+        if is_logits:
+            logger.info("Applying softmax to predictions of shape: {}".format(batch_pred.shape))
+            batch_pred = softmax(batch_pred, axis=-1)
         if overlapping:
             for p in batch_pred:
                 pred[cur_pos:cur_pos+p.shape[0]] += p
                 cur_pos += 1
         else:
+            if idx == 0:
+                margin = batch_pred.shape[1]
             batch_pred = batch_pred.reshape(-1, n_classes)
             n_vals = batch_pred.shape[0]
-            pred[cur_pos:cur_pos+n_vals] += batch_pred
+            # in the last batch, we might have to cut off some predictions
+            # and keep only the last predictions
+            if cur_pos+n_vals>total_seq_length:
+                n_invalid = cur_pos+n_vals-total_seq_length
+                logger.info(f"Cutting off {n_invalid} duplicate predictions")
+                batch_pred = np.concatenate([batch_pred[:-margin],batch_pred[-margin+n_invalid:]])
+                pred[cur_pos:] += batch_pred
+            # in all the other cases, we can just add the predictions
+            else:
+                pred[cur_pos:cur_pos+n_vals] += batch_pred
             cur_pos += n_vals
     if argmax:
         pred = pred.argmax(-1)
     else:
-        # Divide by number of times every epoch got a prediction in batch
-        div = np.concatenate((np.arange(1, s[1] + 1), np.ones(shape=(total_seq_length - 2 * s[1])) * s[1],
-                        np.arange(s[1], 0, -1))).reshape(-1, 1)
-        pred = pred/div
-    print()
+        if overlapping:
+            # Divide by number of times every epoch got a prediction in batch
+            div = np.concatenate((np.arange(1, s[1] + 1), np.ones(shape=(total_seq_length - 2 * s[1])) * s[1],
+                            np.arange(s[1], 0, -1))).reshape(-1, 1)
+            pred = pred/div
     return pred

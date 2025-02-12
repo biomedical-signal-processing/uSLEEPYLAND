@@ -9,15 +9,25 @@ logger = logging.getLogger(__name__)
 
 def batch_wrapper(generator, x_shape, y_shape,
                   x_dtype=np.float32, y_dtype=np.uint8):
+    """
+    This wrapper function is used to generate batches of data from a generator
+    which yields single samples of data. The function will collect samples until
+    a full batch is ready and then yield the batch.
+    """
     batch_size = x_shape[0]
     x_batch = np.empty(x_shape, dtype=x_dtype)
     y_batch = np.empty(y_shape, dtype=y_dtype)
     batch_length = 0
     for i, (xx, yy) in enumerate(generator):
+        xx = xx.squeeze()
+        # in case of 1 channel we re-add the channel dimension
+        if xx.ndim == 2:
+            xx = xx[..., np.newaxis]
+        yy = yy.squeeze()
         batch_ind = i % batch_size
         try:
-            x_batch[batch_ind] = xx.squeeze()
-            y_batch[batch_ind] = yy.squeeze()
+            x_batch[batch_ind] = xx
+            y_batch[batch_ind] = yy
         except ValueError:
             continue
         batch_length += 1

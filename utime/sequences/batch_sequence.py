@@ -141,7 +141,7 @@ class BatchSequence(BaseSequence):
                     f"    Margin:          {self.margin}\n"
                     f"    Augmenters:      {self.augmenters}\n"
                     f"    Aug enabled:     {self.augmentation_enabled}\n"
-                    f"    Batch scaling:   {bool(self.batch_scaler)}\n"
+                    f"    Batch scaling:   {self.batch_scaler if self.batch_scaler else False}\n"
                     f"    All loaded:      {self.all_loaded}\n"
                     f"    N classes:       {self.n_classes}{' (AUTO-INFERRED)' if self._inferred else ''}")
 
@@ -296,11 +296,15 @@ class BatchSequence(BaseSequence):
             sequence_generator = ss.to_batch_generator(batch_size=seq_length,
                                                        overlapping=overlapping)
             shapes = self.get_batch_shapes(batch_size)
-            for X, y in batch_wrapper(sequence_generator, *shapes):
+            for X, y in batch_wrapper(
+                    generator=sequence_generator,
+                    x_shape=shapes[0],
+                    y_shape=shapes[1]):
+                logger.info(f"Yielding sequence of shape {X.shape}")
                 try:
                     yield self.process_batch(X, y)
                 except RuntimeError as e:
-                    logger.warning(f"Error processing batch: {e}")
+                    logger.info(f"Error processing batch: {e}")
                     continue
 
     def single_study_batch_generator(self, study_id, batch_size=None):

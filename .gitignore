@@ -216,6 +216,9 @@ data
 /utime/bin/defaults/deepresnet/dataset_configurations/isruc_sg2.yaml
 /utime/bin/defaults/deepresnet/dataset_configurations/isruc_sg3.yaml
 /utime/bin/defaults/deepresnet/dataset_configurations/svuh.yaml
+/utime/bin/defaults/deepresnet/dataset_configurations/chat.yaml
+/utime/bin/defaults/deepresnet/hparams.yaml
+
 
 /utime/bin/defaults/lseqsleepnet/dataset_configurations/
 /utime/bin/defaults/lseqsleepnet/dataset_configurations/dod_h.yaml
@@ -224,6 +227,8 @@ data
 /utime/bin/defaults/lseqsleepnet/dataset_configurations/isruc_sg2.yaml
 /utime/bin/defaults/lseqsleepnet/dataset_configurations/isruc_sg3.yaml
 /utime/bin/defaults/lseqsleepnet/dataset_configurations/svuh.yaml
+/utime/bin/defaults/lseqsleepnet/hparams.yaml
+
 
 /utime/bin/defaults/sleeptransformer/dataset_configurations/
 /utime/bin/defaults/sleeptransformer/dataset_configurations/dod_h.yaml
@@ -232,6 +237,21 @@ data
 /utime/bin/defaults/sleeptransformer/dataset_configurations/isruc_sg2.yaml
 /utime/bin/defaults/sleeptransformer/dataset_configurations/isruc_sg3.yaml
 /utime/bin/defaults/sleeptransformer/dataset_configurations/svuh.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/abc.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/ccshs.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/cfs.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/chat.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/dcsm.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/homepap.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/mesa.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/mros.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/phys.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/sedf_sc.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/sedf_st.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/shhs.yaml
+/utime/bin/defaults/sleeptransformer/dataset_configurations/sof.yaml
+/utime/bin/defaults/sleeptransformer/hparams.yaml
+
 
 /utime/bin/defaults/usleep/dataset_configurations/
 /utime/bin/defaults/usleep/dataset_configurations/dod_h.yaml
@@ -240,6 +260,7 @@ data
 /utime/bin/defaults/usleep/dataset_configurations/isruc_sg2.yaml
 /utime/bin/defaults/usleep/dataset_configurations/isruc_sg3.yaml
 /utime/bin/defaults/usleep/dataset_configurations/svuh.yaml
+/utime/bin/defaults/usleep/hparams.yaml
 
 /utime/bin/defaults/yasa/dataset_configurations/
 /utime/bin/defaults/yasa/dataset_configurations/dod_h.yaml

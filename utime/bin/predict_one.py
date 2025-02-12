@@ -2,18 +2,22 @@ import logging
 import os
 import numpy as np
 import mne
+import math
 from pprint import pformat
 from collections import namedtuple
 from argparse import ArgumentParser, Namespace
 from utime import Defaults
 from utime.utils.system import find_and_set_gpus
-from utime.bin.evaluate import get_and_load_one_shot_model
+from utime.bin.evaluate import get_and_load_one_shot_model, get_and_load_model
+from utime.utils.nn_utils import softmax
 from psg_utils.dataset.sleep_study import SleepStudy
 from psg_utils.hypnogram.utils import dense_to_sparse
 from psg_utils.io.header import extract_header
 from psg_utils.io.channels import infer_channel_types, VALID_CHANNEL_TYPES, is_eeg_central
 from psg_utils.io.channels import auto_infer_referencing as infer_channel_refs
 from psg_utils.io.channels.utils import get_channel_group_combinations
+from psg_utils.preprocessing.scaling import batch_scaling
+from psg_utils.preprocessing.spectrogram import compute_spectrogram
 from utime.utils.scriptutils import add_logging_file_handler
 
 logger = logging.getLogger(__name__)
@@ -74,6 +78,12 @@ def get_argparser():
                              'giving 1 segmentation per 30 seconds of signal. '
                              'Set this to 1 to score every data point in the '
                              'signal.')
+    parser.add_argument("--one_shot", action="store_true", default=False,
+                        help="Segment each SleepStudy in one forward-pass "
+                             "instead of using (GPU memory-efficient) sliding "
+                             "window predictions.")
+    parser.add_argument("--is_logits", action="store_true", default=False,
+                        help='Model outputs are logits and should be softmaxed.')
     parser.add_argument("--num_gpus", type=int, default=0,
                         help="Number of GPUs to use for this job")
     parser.add_argument("--force_gpus", type=str, default="")
@@ -141,7 +151,8 @@ def get_processed_args(args):
 
     # Check project folder is valid
     from utime.utils.scriptutils.scriptutils import assert_project_folder
-    assert_project_folder(project_dir, evaluation=True)
+    if not args.model_external:
+        assert_project_folder(project_dir, evaluation=True)
     args.project_dir = project_dir
 
     # Set absolute input file path
@@ -192,16 +203,64 @@ def get_save_path(out_dir, file_name, sub_folder_name=None):
     return out_path
 
 
-def run_pred_on(study, channel_group, model, model_external):
+def run_pred_on(study, channel_group, model, model_external, args, hparams):
     pred = None
     if not model_external:
-        psg = np.expand_dims(study.get_all_periods(), 0)
-        psg_subset = psg[..., tuple(channel_group.channel_indices)]
-        # Get PSG for particular group
+        # sliding window prediction
+        if not args.one_shot:
+            psg = study.get_all_periods()
+            psg_subset = psg[..., tuple(channel_group.channel_indices)]
+            entire_psg = psg_subset.copy()
+
+            psg_shape = entire_psg.shape
+            total_epochs = psg_shape[0]
+
+            batch_shape = hparams.get("build").get("batch_shape")
+            num_epochs_per_sample = batch_shape[1]
+
+            total_samples = math.ceil(total_epochs / num_epochs_per_sample)
+            last_sample_epochs = total_epochs % num_epochs_per_sample
+
+            psg_subset = np.zeros((total_samples, num_epochs_per_sample, *psg_shape[1:]), dtype=psg_subset.dtype)
+            for i in range(total_samples):
+                start_ind = i * num_epochs_per_sample
+                end_ind = start_ind + num_epochs_per_sample
+                # in the last sample, which can be shorter that the rest, pick the last epochs
+                if i == total_samples - 1 and last_sample_epochs != 0:
+                    psg_subset[i] = entire_psg[-num_epochs_per_sample:, ...]
+                else:
+                    psg_subset[i] = entire_psg[start_ind:end_ind, ...]
+        else: # one-shot prediction
+            psg = np.expand_dims(study.get_all_periods(), 0)  # adds batch dimension
+            psg_subset = psg[..., tuple(channel_group.channel_indices)]
+
+        logger.info(f"Spectrogram {hparams.get('fit').get('get_spectrogram', False)}")
+        logger.info(f"Scaling {hparams.get('scaler', None)}")
+        logger.info(f"Extracted PSG shape: {psg_subset.shape}")
+        # for models requiring spectrograms compute them and possibly scale them
+        if hparams["fit"].get("get_spectrogram"):
+            psg_subset = compute_spectrogram(psg_subset)
+            if bool(hparams.get("scaler", None)):
+                batch_scaling(psg_subset, hparams.get("scaler"))
+
         logger.info(f"\n--- Channel names: {channel_group.channel_names}\n"
                     f"--- Channel inds: {channel_group.channel_indices}\n"
-                    f"--- Extracted PSG shape: {psg_subset.shape}")
+                    f"--- Processed PSG shape: {psg_subset.shape}")
+
         pred = model.predict_on_batch(psg_subset)
+
+        if args.is_logits:
+            logger.info("Applying softmax to predictions of shape: {}".format(pred.shape))
+            pred = softmax(pred, axis=-1)
+
+        if not args.one_shot:
+            # reshape to (total_epochs, n_classes)
+            pred = pred.reshape(-1, pred.shape[-1])
+            # must throw away the last predictions if the last sample is shorter than the rest
+            if last_sample_epochs != 0:
+                num_invalid_predictions = num_epochs_per_sample - last_sample_epochs
+                logger.info(f"Cutting off {num_invalid_predictions} duplicate predictions")
+                pred = np.concatenate([pred[:-num_epochs_per_sample], pred[-last_sample_epochs:]])
     else:
         psg = study.psg[:, tuple(channel_group.channel_indices)]
         if model_external == 'yasa':
@@ -263,7 +322,7 @@ def run_pred_on(study, channel_group, model, model_external):
     return pred
 
 
-def predict_study(study, model, channel_groups, model_external, args):
+def predict_study(study, model, channel_groups, model_external, args, hparams):
     identifier, _ = os.path.splitext(os.path.split(study.psg_file_path)[-1])
     majority_voted = None
     path_mj = get_save_path(args.out_dir, identifier + "_PRED.npy", "majority")
@@ -305,7 +364,9 @@ def predict_study(study, model, channel_groups, model_external, args):
             study=study,
             channel_group=channel_group,
             model=model,
-            model_external=model_external
+            model_external=model_external,
+            args=args,
+            hparams=hparams
         )
 
         # Sum the predictions into the majority_voted array
@@ -587,15 +648,31 @@ def run(args):
     model, model_func = None, None
 
     if not args.model_external:
-        model = get_and_load_one_shot_model(
-            n_periods=study.n_periods,
-            project_dir=args.project_dir,
-            hparams=hparams,
-            weights_file_name=args.weights_file_name
-        )
-    logger.info("Predicting...")
+        if args.one_shot:
+            model = get_and_load_one_shot_model(
+                n_periods=study.n_periods,
+                project_dir=args.project_dir,
+                hparams=hparams,
+                weights_file_name=args.weights_file_name
+            )
+        else:
+            model = get_and_load_model(
+                project_dir=args.project_dir,
+                hparams=hparams,
+                weights_file_name=args.weights_file_name
+            )
 
-    predict_study(study, model, channel_groups, args.model_external, args)
+    if args.one_shot:
+        logger.info("Predicting with one-shot model.")
+    else:
+        logger.info("Predicting with sliding window model.")
+
+    predict_study(study=study,
+                  model=model,
+                  channel_groups=channel_groups,
+                  model_external=args.model_external,
+                  args=args,
+                  hparams=hparams)
 
     # logger.info(f"Predicted shape: {pred.shape}")
 
