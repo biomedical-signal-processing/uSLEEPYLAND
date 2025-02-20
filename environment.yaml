@@ -1,4 +1,4 @@
-name: u-time-sleepyland-tfcuda
+name: u-sleepyland-tfcuda
 channels:
   - defaults
   - conda-forge
