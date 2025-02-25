@@ -28,7 +28,8 @@ def auto_infer_referencing(channel_names, channel_types=None, types=("EEG",), on
         for i, (c1, c2) in enumerate(zip(channel_types, inferred_types)):
             if c2 == "MASTOID":
                 channel_types[i] = c2
-    mastoids = ChannelMontageTuple(("M1", "M2")).match(channel_names_montage, take_target=True)
+    mastoids_names = [c for c, type_ in zip(channel_names, channel_types) if type_ == "MASTOID"]
+    mastoids = ChannelMontageTuple(mastoids_names).match(channel_names_montage, take_target=True)
     other_channels = [(c, type_) for c, type_ in zip(channel_names_montage, channel_types) if type_ != "MASTOID"]
     if not mastoids:
         logger.warning(f"Could not automatically infer referencing for channels {channel_names_montage}. "
@@ -59,13 +60,23 @@ def auto_infer_referencing(channel_names, channel_types=None, types=("EEG",), on
                 raise ValueError(f"Could not automatically infer referencing for channel {channel} (type={type_}). "
                                  f"The channel name {channel.channel} should contain 1 digit, e.g. as in 'EEG C3', "
                                  f"but found {len(numbers)} ({numbers})")
-            needed_mastoid = ChannelMontage("M" + str(1 + (numbers[0] % 2)))
-            if needed_mastoid in mastoids:
-                ref_mastoid = mastoids[mastoids.index(needed_mastoid)]
-                referenced.append(f"{channel.original_name}-{ref_mastoid.original_name}")
+
+            # needed_mastoid = ChannelMontage("M" + str(1 + (numbers[0] % 2)))
+            # if needed_mastoid in mastoids:
+            #     ref_mastoid = mastoids[mastoids.index(needed_mastoid)]
+            #     referenced.append(f"{channel.original_name}-{ref_mastoid.original_name}")
+            target1 = f"M{1 + (numbers[0] % 2)}"
+            target2 = f"A{1 + (numbers[0] % 2)}"
+            m_index = -1
+            for i, m_ in enumerate(mastoids_names):
+                if target1 in m_ or target2 in m_:
+                    m_index = i
+                    break
+            if m_index != -1:
+                referenced.append(f"{channel.original_name}-{mastoids.original_names[m_index]}")
             else:
                 raise ValueError(f"Could not automatically infer referencing for channel {channel} (type={type_}). "
-                                 f"The channel should be referenced to mastoid {needed_mastoid}, "
+                                 f"The channel should be referenced to mastoid {target1} or mastoid {target2}, "
                                  f"but a match to such was not found among possible: {mastoids}")
     return referenced, referenced_types
 

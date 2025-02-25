@@ -10,7 +10,7 @@ EEG_CHANNELS = list(filter(lambda chan: chan not in ("M1", "M2", "A1", "A2"),
 EEG_REGEX = re.compile(r"(\bEEG|\b{})".format(r"|\b".join(EEG_CHANNELS)), re.IGNORECASE)
 EOG_REGEX = re.compile(r"(\bEOG|\bE\d|\bROC|\bLOC)", re.IGNORECASE)
 EMG_REGEX = re.compile(r"(\bEMG)", re.IGNORECASE)
-MASTOID_REGEX = re.compile(r"(\bA1|\bA2|\bM1|\bM2)", re.IGNORECASE)
+MASTOID_REGEX = re.compile(r"(^|[^a-zA-Z0-9])(A1|A2|M1|M2|REF)($|[^a-zA-Z0-9])", re.IGNORECASE)
 
 EEG_CHANNELS_CENTRAL = list(filter(lambda chan: chan in ('C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6'),
                            make_standard_montage("standard_1020").ch_names))
